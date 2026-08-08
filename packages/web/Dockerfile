@@ -22,6 +22,9 @@ ENV DATABASE_URL=${DATABASE_URL}
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 COPY package.json package-lock.json* ./
+# `npm install` triggers `postinstall: prisma generate`, so the schema has
+# to be present before that runs — not just at `COPY . .` afterward.
+COPY prisma ./prisma
 RUN npm install
 
 COPY . .
