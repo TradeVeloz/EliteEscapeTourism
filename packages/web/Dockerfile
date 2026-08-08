@@ -1,6 +1,13 @@
 FROM node:20-alpine AS base
 WORKDIR /app
 
+# Prisma needs a syntactically valid DATABASE_URL to generate the client
+# (postinstall) and to typecheck during `next build`, even though the build
+# never connects to it. The real value is supplied at container runtime via
+# docker-compose / the platform's env — this only satisfies the build step.
+ARG DATABASE_URL="postgresql://build:build@localhost:5432/build"
+ENV DATABASE_URL=${DATABASE_URL}
+
 COPY package.json package-lock.json* ./
 RUN npm install
 

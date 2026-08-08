@@ -1,15 +1,44 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { visaCountries } from "@/lib/data";
+import { visaCountries, destinations } from "@/lib/data";
 
 export default function VisaPage() {
-  const [status, setStatus] = useState<"idle" | "submitting" | "success">("idle");
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus("submitting");
-    setTimeout(() => setStatus("success"), 600);
+    setErrorMessage(null);
+
+    const form = new FormData(event.currentTarget);
+    const payload = {
+      destinationSlug: form.get("destinationSlug"),
+      fullName: form.get("fullName"),
+      nationality: form.get("nationality"),
+      purpose: form.get("purpose"),
+      email: form.get("email"),
+      passportNo: form.get("passportNo"),
+      passportExpiry: form.get("passportExpiry"),
+    };
+
+    try {
+      const res = await fetch("/api/v1/visa/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error ?? "Request failed");
+      }
+      setStatus("success");
+      event.currentTarget.reset();
+    } catch (error) {
+      setStatus("error");
+      setErrorMessage(error instanceof Error ? error.message : "Something went wrong");
+    }
   }
 
   return (
@@ -77,25 +106,50 @@ export default function VisaPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="text-xs font-medium text-ink-muted">Full name</label>
-                  <input required className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold" />
+                  <input name="fullName" required className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold" />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-ink-muted">Nationality</label>
-                  <input required className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold" />
+                  <input name="nationality" required className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold" />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-ink-muted">Destination country</label>
-                <input required className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold" />
+                <label className="text-xs font-medium text-ink-muted">Destination</label>
+                <select
+                  name="destinationSlug"
+                  required
+                  defaultValue=""
+                  className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+                >
+                  <option value="" disabled>Select a destination</option>
+                  {destinations.map((d) => (
+                    <option key={d.slug} value={d.slug}>{d.name}, {d.country}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-xs font-medium text-ink-muted">Passport number</label>
+                  <input name="passportNo" required className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-ink-muted">Passport expiry</label>
+                  <input name="passportExpiry" type="date" required className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold" />
+                </div>
               </div>
               <div>
                 <label className="text-xs font-medium text-ink-muted">Purpose of travel</label>
-                <input required className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold" />
+                <input name="purpose" required className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold" />
               </div>
               <div>
                 <label className="text-xs font-medium text-ink-muted">Email</label>
-                <input required type="email" className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold" />
+                <input name="email" required type="email" className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold" />
               </div>
+
+              {status === "error" && (
+                <p className="text-sm text-red-600">{errorMessage ?? "Something went wrong — please try again."}</p>
+              )}
+
               <button type="submit" disabled={status === "submitting"} className="btn-primary w-full disabled:opacity-60">
                 {status === "submitting" ? "Sending…" : "Submit application"}
               </button>

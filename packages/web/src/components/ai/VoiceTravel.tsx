@@ -1,11 +1,17 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
+import type { Package } from "@/types";
+import { formatCurrency, packageTypeLabel } from "@/lib/utils";
+
+type SendState = "idle" | "sending" | "sent" | "error";
 
 /**
  * Voice-first input using the browser's native SpeechRecognition API —
  * no third-party speech service wired in. Falls back to a text field on
  * browsers without support (notably Firefox, and Safari without the flag).
+ * The brief is sent to /api/v1/ai/recommendations for matching.
  */
 export function VoiceTravel() {
   const [supported] = useState(
@@ -13,7 +19,9 @@ export function VoiceTravel() {
   );
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const [sent, setSent] = useState(false);
+  const [sendState, setSendState] = useState<SendState>("idle");
+  const [recommendation, setRecommendation] = useState<Package | null>(null);
+  const [reasoning, setReasoning] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
 
   function toggleListening() {
@@ -42,6 +50,24 @@ export function VoiceTravel() {
     recognitionRef.current = recognition;
     recognition.start();
     setListening(true);
+  }
+
+  async function sendBrief() {
+    setSendState("sending");
+    try {
+      const res = await fetch("/api/v1/ai/recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: transcript }),
+      });
+      if (!res.ok) throw new Error("request failed");
+      const body = await res.json();
+      setRecommendation(body.data.package);
+      setReasoning(body.data.reasoning ?? null);
+      setSendState("sent");
+    } catch {
+      setSendState("error");
+    }
   }
 
   return (
@@ -84,16 +110,31 @@ export function VoiceTravel() {
 
         <button
           className="btn-primary w-full disabled:opacity-50"
-          disabled={!transcript.trim() || sent}
-          onClick={() => setSent(true)}
+          disabled={!transcript.trim() || sendState === "sending" || sendState === "sent"}
+          onClick={sendBrief}
         >
-          {sent ? "Sent" : "Send brief to a travel specialist"}
+          {sendState === "sending" ? "Matching…" : sendState === "sent" ? "Matched" : "Match me to a package"}
         </button>
 
-        {sent && (
-          <p className="text-sm text-teal-dark">
-            Thanks — a travel specialist will follow up on this brief shortly.
-          </p>
+        {sendState === "error" && (
+          <p className="text-sm text-red-600">Something went wrong — please try again.</p>
+        )}
+
+        {sendState === "sent" && recommendation && (
+          <div className="w-full rounded-xl border border-black/10 p-4 text-left">
+            <h4 className="font-semibold text-navy">{recommendation.name}</h4>
+            {reasoning && <p className="mt-1 text-sm text-ink-muted">{reasoning}</p>}
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
+              <span className="rounded-full bg-navy px-3 py-1 font-semibold text-white">
+                {packageTypeLabel(recommendation.type)}
+              </span>
+              <span className="text-ink-muted">{recommendation.duration} days</span>
+              <span className="font-semibold text-navy">{formatCurrency(recommendation.price)}</span>
+            </div>
+            <Link href={`/holidays/${recommendation.slug}`} className="btn-primary mt-4 inline-flex">
+              View full itinerary
+            </Link>
+          </div>
         )}
       </div>
     </div>
