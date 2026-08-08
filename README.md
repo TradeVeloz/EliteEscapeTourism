@@ -95,36 +95,42 @@ comment in `next.config.js`.
   fallback path is verified; the live-model path is code-complete but
   unexercised here.
 
-## Deploying (Vercel)
+## Deploying (Railway)
 
-1. **Import the repo**: Vercel dashboard → Add New → Project → import this
-   GitHub repo.
-2. **Root Directory**: set to `packages/web` (Project Settings → General —
-   this is a monorepo, the Next.js app isn't at the repo root).
-3. **Build command**: leave it on auto-detect — Vercel picks up the
-   `vercel-build` script in `package.json` automatically
-   (`prisma migrate deploy && next build`), which applies the migration in
-   `prisma/migrations/` to whatever `DATABASE_URL` is set at build time.
-4. **Add Postgres**: Storage tab → Marketplace → Neon (or Supabase) → create
-   a database, attach it to this project. That sets a connection-string env
-   var — copy its value into an env var literally named `DATABASE_URL` if
-   the integration names it something else (e.g. `POSTGRES_URL`).
-5. **Environment variables** (Project Settings → Environment Variables):
+The app ships a `Dockerfile` (`packages/web/Dockerfile`), which Railway
+auto-detects and builds from — no Nixpacks config needed.
+
+1. **New project**: Railway dashboard → New Project → Deploy from GitHub
+   repo → select this repo.
+2. **Root Directory**: on the web service, Settings → Root Directory → set
+   to `packages/web` (this is a monorepo).
+3. **Add Postgres**: in the same project, New → Database → Add PostgreSQL.
+   Railway provisions it and exposes a `DATABASE_URL`-shaped reference
+   variable you can wire into the web service (Variables tab → add
+   `DATABASE_URL` → reference `${{Postgres.DATABASE_URL}}`).
+4. **Environment variables** (web service → Variables):
 
    | Variable | Required | Notes |
    | --- | --- | --- |
-   | `DATABASE_URL` | Yes | From step 4 |
+   | `DATABASE_URL` | Yes | Reference to the Postgres plugin, from step 3 |
    | `JWT_SECRET` | Yes | Any long random string — generate with `openssl rand -base64 32` |
    | `JWT_REFRESH_SECRET` | Yes | Same, different value |
-   | `FRONTEND_URL` | Yes | Your production URL, e.g. `https://your-project.vercel.app` (used for Stripe redirect URLs) |
+   | `FRONTEND_URL` | Yes | Your production URL, e.g. `https://your-project.up.railway.app` (used for Stripe redirect URLs) |
    | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | No | Payments return 503 until set |
    | `ANTHROPIC_API_KEY` | No | AI planner falls back to rule-based matching until set |
 
-6. **Deploy**. Vercel builds and runs the migration automatically on every
-   push to the branch you deploy from.
+5. **Deploy**. The Dockerfile's `CMD` runs `prisma migrate deploy` before
+   `npm start` on every container start, so the schema in
+   `prisma/migrations/` is applied automatically — no separate migration
+   step to remember.
+6. **Networking**: Settings → Networking → Generate Domain to get a public
+   URL (Railway services aren't public by default).
 7. **Seed the catalogue** (destinations/packages) once, from your machine
    or this session if you share the `DATABASE_URL`:
    `DATABASE_URL="..." npm run prisma:seed` from `packages/web`.
+
+A `vercel-build` script also exists in `package.json` if you ever want to
+deploy to Vercel instead — see git history for the equivalent walkthrough.
 
 ## Getting started
 
