@@ -95,42 +95,43 @@ comment in `next.config.js`.
   fallback path is verified; the live-model path is code-complete but
   unexercised here.
 
-## Deploying (Railway)
+## Deploying (Render)
 
-The app ships a `Dockerfile` (`packages/web/Dockerfile`), which Railway
-auto-detects and builds from — no Nixpacks config needed.
+`render.yaml` at the repo root is a Render **Blueprint** — it declares the
+web service (built from `packages/web/Dockerfile`) and a managed Postgres
+database together, so Render can provision both in one pass instead of you
+wiring each setting by hand.
 
-1. **New project**: Railway dashboard → New Project → Deploy from GitHub
-   repo → select this repo.
-2. **Root Directory**: on the web service, Settings → Root Directory → set
-   to `packages/web` (this is a monorepo).
-3. **Add Postgres**: in the same project, New → Database → Add PostgreSQL.
-   Railway provisions it and exposes a `DATABASE_URL`-shaped reference
-   variable you can wire into the web service (Variables tab → add
-   `DATABASE_URL` → reference `${{Postgres.DATABASE_URL}}`).
-4. **Environment variables** (web service → Variables):
+1. **New Blueprint**: Render dashboard → New → Blueprint → connect this
+   GitHub repo. Render reads `render.yaml` and shows a preview of what it's
+   about to create (the `elite-escape-web` service + `elite-escape-db`
+   database) before you confirm.
+2. **Fill in the prompted variables**: the blueprint auto-generates
+   `JWT_SECRET` / `JWT_REFRESH_SECRET` and wires `DATABASE_URL` from the
+   database it creates — you'll only be prompted for the `sync: false` ones:
 
    | Variable | Required | Notes |
    | --- | --- | --- |
-   | `DATABASE_URL` | Yes | Reference to the Postgres plugin, from step 3 |
-   | `JWT_SECRET` | Yes | Any long random string — generate with `openssl rand -base64 32` |
-   | `JWT_REFRESH_SECRET` | Yes | Same, different value |
-   | `FRONTEND_URL` | Yes | Your production URL, e.g. `https://your-project.up.railway.app` (used for Stripe redirect URLs) |
+   | `FRONTEND_URL` | Yes | Your production URL, e.g. `https://elite-escape-web.onrender.com` — Render assigns this on first deploy, so you may need to set it after the first deploy completes and redeploy once |
    | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | No | Payments return 503 until set |
    | `ANTHROPIC_API_KEY` | No | AI planner falls back to rule-based matching until set |
 
-5. **Deploy**. The Dockerfile's `CMD` runs `prisma migrate deploy` before
+3. **Apply** the blueprint. Render builds the Dockerfile and provisions
+   Postgres. The Dockerfile's `CMD` runs `prisma migrate deploy` before
    `npm start` on every container start, so the schema in
-   `prisma/migrations/` is applied automatically — no separate migration
-   step to remember.
-6. **Networking**: Settings → Networking → Generate Domain to get a public
-   URL (Railway services aren't public by default).
-7. **Seed the catalogue** (destinations/packages) once, from your machine
-   or this session if you share the `DATABASE_URL`:
+   `prisma/migrations/` is applied automatically.
+4. **Seed the catalogue** (destinations/packages) once, from your machine
+   or this session if you share the `DATABASE_URL` (Render dashboard →
+   `elite-escape-db` → Connect → External Connection String):
    `DATABASE_URL="..." npm run prisma:seed` from `packages/web`.
 
-A `vercel-build` script also exists in `package.json` if you ever want to
-deploy to Vercel instead — see git history for the equivalent walkthrough.
+Note: Render's free web-service plan spins down after inactivity (~30s cold
+start on the next request) and the free Postgres plan expires after 90 days
+— fine for evaluation, worth upgrading before relying on it.
+
+Prefer Railway or Vercel instead? `package.json` still has a `vercel-build`
+script, and the Dockerfile works unmodified on Railway — see git history
+for those walkthroughs; the app itself doesn't change per platform.
 
 ## Getting started
 
