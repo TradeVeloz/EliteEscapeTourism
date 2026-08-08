@@ -15,4 +15,7 @@ COPY . .
 RUN npm run build
 
 EXPOSE 3000
-CMD ["npm", "start"]
+# Migrations run at container start (not build time) — the real DATABASE_URL
+# for a linked Postgres service is only guaranteed to be reachable at
+# runtime on platforms like Railway, not during the image build.
+CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]

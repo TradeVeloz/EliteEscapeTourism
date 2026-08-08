@@ -85,12 +85,53 @@ comment in `next.config.js`.
 ## Not verified in this environment (needs real infra)
 
 - End-to-end auth/booking/payment flows against a live Postgres instance —
-  `docker-compose.yml` provisions one; run `npm run prisma:migrate` then
-  `npm run prisma:seed` against it before testing these flows for real.
+  `docker-compose.yml` provisions one locally; `prisma/migrations/` has the
+  initial schema migration (generated with `prisma migrate diff
+  --from-empty`, since this sandbox has no reachable Postgres to run
+  `prisma migrate dev` against directly — the SQL itself is what `migrate
+  dev` would have produced, just generated without a live connection).
 - Live Stripe Checkout and webhook delivery (needs real API + webhook keys).
 - Live Anthropic-backed AI responses (needs `ANTHROPIC_API_KEY`) — the
   fallback path is verified; the live-model path is code-complete but
   unexercised here.
+
+## Deploying (Render)
+
+`render.yaml` at the repo root is a Render **Blueprint** — it declares the
+web service (built from `packages/web/Dockerfile`) and a managed Postgres
+database together, so Render can provision both in one pass instead of you
+wiring each setting by hand.
+
+1. **New Blueprint**: Render dashboard → New → Blueprint → connect this
+   GitHub repo. Render reads `render.yaml` and shows a preview of what it's
+   about to create (the `elite-escape-web` service + `elite-escape-db`
+   database) before you confirm.
+2. **Fill in the prompted variables**: the blueprint auto-generates
+   `JWT_SECRET` / `JWT_REFRESH_SECRET` and wires `DATABASE_URL` from the
+   database it creates — you'll only be prompted for the `sync: false` ones:
+
+   | Variable | Required | Notes |
+   | --- | --- | --- |
+   | `FRONTEND_URL` | Yes | Your production URL, e.g. `https://elite-escape-web.onrender.com` — Render assigns this on first deploy, so you may need to set it after the first deploy completes and redeploy once |
+   | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | No | Payments return 503 until set |
+   | `ANTHROPIC_API_KEY` | No | AI planner falls back to rule-based matching until set |
+
+3. **Apply** the blueprint. Render builds the Dockerfile and provisions
+   Postgres. The Dockerfile's `CMD` runs `prisma migrate deploy` before
+   `npm start` on every container start, so the schema in
+   `prisma/migrations/` is applied automatically.
+4. **Seed the catalogue** (destinations/packages) once, from your machine
+   or this session if you share the `DATABASE_URL` (Render dashboard →
+   `elite-escape-db` → Connect → External Connection String):
+   `DATABASE_URL="..." npm run prisma:seed` from `packages/web`.
+
+Note: Render's free web-service plan spins down after inactivity (~30s cold
+start on the next request) and the free Postgres plan expires after 90 days
+— fine for evaluation, worth upgrading before relying on it.
+
+Prefer Railway or Vercel instead? `package.json` still has a `vercel-build`
+script, and the Dockerfile works unmodified on Railway — see git history
+for those walkthroughs; the app itself doesn't change per platform.
 
 ## Getting started
 
