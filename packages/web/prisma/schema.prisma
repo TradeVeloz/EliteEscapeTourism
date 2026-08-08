@@ -1,0 +1,154 @@
+// Elite Escape Tourism — data model.
+// Not yet wired to a live database (see /README.md); `prisma migrate` can be
+// run against a real Postgres instance once DATABASE_URL is provisioned.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TRAVEL_AGENT
+  CLIENT
+  PARTNER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum PackageType {
+  HONEYMOON
+  FAMILY
+  CORPORATE
+  LUXURY
+  CUSTOM
+}
+
+enum BookingStatus {
+  INQUIRY
+  PLANNING
+  CONFIRMED
+  DEPARTED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+}
+
+enum VisaStatus {
+  PENDING
+  DOCUMENTS
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id          String            @id @default(cuid())
+  email       String            @unique
+  phone       String?           @unique
+  name        String
+  role        Role              @default(CLIENT)
+  status      UserStatus        @default(PENDING)
+  preferences Json?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  bookings    Booking[]
+  visaApps    VisaApplication[]
+}
+
+model Destination {
+  id           String            @id @default(cuid())
+  name         String
+  slug         String            @unique
+  region       String
+  country      String
+  description  String
+  image        String
+  gallery      String[]
+  rating       Float             @default(0)
+  reviews      Int               @default(0)
+  bestTime     String
+  currency     String
+  language     String
+  visaRequired Boolean           @default(true)
+  popular      Boolean           @default(false)
+  featured     Boolean           @default(false)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  packages     Package[]
+  visaApps     VisaApplication[]
+}
+
+model Package {
+  id            String      @id @default(cuid())
+  name          String
+  slug          String      @unique
+  destinationId String
+  destination   Destination @relation(fields: [destinationId], references: [id])
+  type          PackageType
+  duration      Int
+  price         Float
+  discount      Float?      @default(0)
+  description   String
+  itinerary     String[]
+  inclusions    String[]
+  exclusions    String[]
+  images        String[]
+  rating        Float       @default(0)
+  reviews       Int         @default(0)
+  featured      Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  bookings      Booking[]
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  bookingNo     String        @unique
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  packageId     String
+  package       Package       @relation(fields: [packageId], references: [id])
+  travelers     Int           @default(1)
+  travelDate    DateTime
+  returnDate    DateTime
+  totalPrice    Float
+  status        BookingStatus @default(INQUIRY)
+  paymentStatus PaymentStatus @default(PENDING)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model VisaApplication {
+  id             String      @id @default(cuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id])
+  destinationId  String
+  destination    Destination @relation(fields: [destinationId], references: [id])
+  passportNo     String
+  passportExpiry DateTime
+  nationality    String
+  purpose        String
+  status         VisaStatus  @default(PENDING)
+  documents      String[]
+  submittedAt    DateTime?
+  approvedAt     DateTime?
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
