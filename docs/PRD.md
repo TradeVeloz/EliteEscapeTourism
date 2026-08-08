@@ -38,19 +38,26 @@ by one specialist).
 
 ## Data model
 
-See `packages/web/prisma/schema.prisma`: `User`, `Destination`, `Package`,
-`Booking`, `VisaApplication`, plus supporting enums for role, status, and
-package type.
+See `packages/web/prisma/schema.prisma`: `User`, `RefreshToken`, `Destination`,
+`Package`, `Booking`, `Payment`, `VisaApplication`, plus supporting enums for
+role, status, and package type.
+
+## Backend (implemented, see README for verification status)
+
+- Auth: register/login/MFA(TOTP)/refresh/logout, RBAC
+- Bookings and visa applications persisted via Prisma, with a guest-checkout
+  pattern (lead account created on a new email) matching the existing
+  no-login-required enquiry forms
+- Payments: Stripe Checkout session creation + webhook
+- AI: `/api/v1/ai/recommendations` and `/api/v1/ai/itinerary`, Anthropic-backed
+  when configured, deterministic fallback otherwise
 
 ## Explicitly deferred
 
-Real authentication (JWT/MFA/RBAC), payments (Stripe), a live database,
-third-party AI travel-planner integrations (MyTripPlanner, Atlas, Voyage),
-third-party visa RAG assistants (AskKSA/Daleel), booking/maps/voice API
-integrations, and the full security/testing/deployment program described in
-the original brief. Each is a substantial workstream that needs a
-provisioned backend and explicit prioritization — see `README.md` for the
-reasoning.
+The ~15 "skill" installs and third-party project integrations (MyTripPlanner,
+Atlas, Voyage, AskKSA/Daleel) named in the original brief, a separate Django
+backend, Booking.com/Google Maps/ElevenLabs/Mapbox integrations, and SMTP
+email — see `README.md` for the reasoning behind each.
 
 ## Success metrics (Year 1 targets, as briefed)
 

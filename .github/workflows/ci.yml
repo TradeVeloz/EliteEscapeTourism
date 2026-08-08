@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+defaults:
+  run:
+    working-directory: packages/web
+
+env:
+  # Prisma needs a syntactically valid DATABASE_URL to generate the client
+  # and typecheck, even though CI never connects to a real database — no
+  # unit or E2E test in this suite touches Postgres.
+  DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+  JWT_SECRET: "ci-access-secret"
+  JWT_REFRESH_SECRET: "ci-refresh-secret"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: packages/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test -- --ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E tests
+        run: npm run test:e2e

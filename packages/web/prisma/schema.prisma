@@ -57,17 +57,33 @@ enum VisaStatus {
 }
 
 model User {
-  id          String            @id @default(cuid())
-  email       String            @unique
-  phone       String?           @unique
-  name        String
-  role        Role              @default(CLIENT)
-  status      UserStatus        @default(PENDING)
-  preferences Json?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  bookings    Booking[]
-  visaApps    VisaApplication[]
+  id            String            @id @default(cuid())
+  email         String            @unique
+  phone         String?           @unique
+  name          String
+  passwordHash  String
+  role          Role              @default(CLIENT)
+  status        UserStatus        @default(PENDING)
+  mfaEnabled    Boolean           @default(false)
+  mfaSecret     String?
+  preferences   Json?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  bookings      Booking[]
+  visaApps      VisaApplication[]
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Destination {
@@ -132,6 +148,22 @@ model Booking {
   notes         String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  payments      Payment[]
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  bookingId   String
+  booking     Booking       @relation(fields: [bookingId], references: [id])
+  provider    String        @default("stripe")
+  providerRef String?       @unique
+  amount      Float
+  currency    String        @default("AED")
+  status      PaymentStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([bookingId])
 }
 
 model VisaApplication {

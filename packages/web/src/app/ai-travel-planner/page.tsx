@@ -40,9 +40,10 @@ export default function AITravelPlannerPage() {
         {mode === "chat" ? <UlisseChat /> : <VoiceTravel />}
 
         <p className="mt-8 text-xs text-ink-muted">
-          This planner matches you to packages from our current catalogue using your answers — it does
-          not yet call a live AI model or third-party booking data (e.g. Booking.com, Google Maps).
-          Those integrations are a planned follow-up once backend infrastructure is in place.
+          This planner matches you to packages from our current catalogue. When an AI model is
+          configured on the server it reasons over the catalogue directly; otherwise a deterministic
+          rule-based matcher takes over automatically — the planner always stays functional either way.
+          Live third-party booking data (e.g. Booking.com, Google Maps) is not wired in.
         </p>
       </section>
     </div>
