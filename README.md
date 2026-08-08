@@ -85,12 +85,46 @@ comment in `next.config.js`.
 ## Not verified in this environment (needs real infra)
 
 - End-to-end auth/booking/payment flows against a live Postgres instance —
-  `docker-compose.yml` provisions one; run `npm run prisma:migrate` then
-  `npm run prisma:seed` against it before testing these flows for real.
+  `docker-compose.yml` provisions one locally; `prisma/migrations/` has the
+  initial schema migration (generated with `prisma migrate diff
+  --from-empty`, since this sandbox has no reachable Postgres to run
+  `prisma migrate dev` against directly — the SQL itself is what `migrate
+  dev` would have produced, just generated without a live connection).
 - Live Stripe Checkout and webhook delivery (needs real API + webhook keys).
 - Live Anthropic-backed AI responses (needs `ANTHROPIC_API_KEY`) — the
   fallback path is verified; the live-model path is code-complete but
   unexercised here.
+
+## Deploying (Vercel)
+
+1. **Import the repo**: Vercel dashboard → Add New → Project → import this
+   GitHub repo.
+2. **Root Directory**: set to `packages/web` (Project Settings → General —
+   this is a monorepo, the Next.js app isn't at the repo root).
+3. **Build command**: leave it on auto-detect — Vercel picks up the
+   `vercel-build` script in `package.json` automatically
+   (`prisma migrate deploy && next build`), which applies the migration in
+   `prisma/migrations/` to whatever `DATABASE_URL` is set at build time.
+4. **Add Postgres**: Storage tab → Marketplace → Neon (or Supabase) → create
+   a database, attach it to this project. That sets a connection-string env
+   var — copy its value into an env var literally named `DATABASE_URL` if
+   the integration names it something else (e.g. `POSTGRES_URL`).
+5. **Environment variables** (Project Settings → Environment Variables):
+
+   | Variable | Required | Notes |
+   | --- | --- | --- |
+   | `DATABASE_URL` | Yes | From step 4 |
+   | `JWT_SECRET` | Yes | Any long random string — generate with `openssl rand -base64 32` |
+   | `JWT_REFRESH_SECRET` | Yes | Same, different value |
+   | `FRONTEND_URL` | Yes | Your production URL, e.g. `https://your-project.vercel.app` (used for Stripe redirect URLs) |
+   | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | No | Payments return 503 until set |
+   | `ANTHROPIC_API_KEY` | No | AI planner falls back to rule-based matching until set |
+
+6. **Deploy**. Vercel builds and runs the migration automatically on every
+   push to the branch you deploy from.
+7. **Seed the catalogue** (destinations/packages) once, from your machine
+   or this session if you share the `DATABASE_URL`:
+   `DATABASE_URL="..." npm run prisma:seed` from `packages/web`.
 
 ## Getting started
 
